@@ -1,5 +1,3 @@
-vendor/
-report/
+.phpunit.cache/
 composer.lock
-sandbox/
-.phpunit.cache
+vendor/

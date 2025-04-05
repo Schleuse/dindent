@@ -10,13 +10,13 @@
 		{
 			"name": "Gajus Kuizinas",
 			"email": "gk@anuary.com"
-		}, {
+		},{
 			"name": "René Schleusner",
 			"email": "r.schleuse@gmail.com"
 		}
 	],
 	"require": {
-		"php": ">=8.1",
+		"php": "^8.1",
 		"ext-mbstring": "*"
 	},
 	"replace": {
@@ -24,7 +24,7 @@
 		"indorock/dindent": "*"
 	},
 	"scripts": {
-		"test": "phpunit"
+		"test": "phpunit -c tests/UnitTests.xml"
 	},
 	"require-dev": {
 		"php-coveralls/php-coveralls": "^2.1",
