@@ -7,8 +7,8 @@ namespace Gajus\Dindent;
  * @phpstan-type LogEntry array{rule: string, pattern: string, subject: string, match: string}
  * @phpstan-type Options array{indentation_character: string, logging: boolean}
  */
-class Indenter {
-
+class Indenter
+{
     /**
      * @var LogEntry[]
      */
@@ -31,7 +31,7 @@ class Indenter {
     /**
      * @var list<string|null>
      */
-    private array $temporary_replacements_script = [];
+    private array $temporary_replacements_source = [];
 
     /**
      * @var list<string|null>
@@ -57,7 +57,7 @@ class Indenter {
      */
     public function setElementType (string $element_name, ElementType $type): void {
         if ($type === ElementType::Block) {
-            $this->inline_elements = array_diff($this->inline_elements, array($element_name));
+            $this->inline_elements = array_diff($this->inline_elements, [$element_name]);
         } else if ($type === ElementType::Inline) {
             $this->inline_elements[] = $element_name;
         } else {
@@ -73,13 +73,20 @@ class Indenter {
     public function indent(string $input): string {
         $this->log = [];
 
-        // Dindent does not indent <script> body. Instead, it temporary removes it from the code, indents the input, and restores the script body.
-        if (preg_match_all('/<script\b[^>]*>([\s\S]*?)<\/script>/mi', $input, $matches)) {
-            $this->temporary_replacements_script = $matches[0] ?? null;
-            foreach ($matches[0] as $i => $match) {
-                $input = str_replace($match, '<script>' . ($i + 1) . '</script>', $input);
-            }
-        }
+        // Dindent does not indent `<script|style>` body. Instead, it temporary removes it from the code, indents the input, and restores the body.
+        $count = 0;
+        $input = preg_replace_callback(
+            '/(?<elm><(script|style)[^>]*>)(?<str>[\s\S]*?)(?<lf>\n?)\s*(?=<\/\2>)/i',
+            function ($match) use (&$count): string
+            {
+                if(empty($match['str'])) {
+                    return $match[0];
+                }
+                $this->temporary_replacements_source[] = $match;
+                return $match['elm'].'ᐄᐄᐄ' . $count++ . 'ᐄᐄᐄ';
+            },
+            $input
+        );
 
         // Removing double whitespaces to make the source code easier to read.
         // With exception of <pre>/ CSS white-space changing the default behaviour, double whitespace is meaningless in HTML output.
@@ -88,16 +95,23 @@ class Indenter {
         $input = preg_replace('/\s{2,}/u', ' ', $input);
 
         // Remove inline elements and replace them with text entities.
-        if (preg_match_all('/<(' . implode('|', $this->inline_elements) . ')[^>]*>(?:[^<]*)<\/\1>/', $input, $matches)) {
-            $this->temporary_replacements_inline = $matches[0] ?? null;
-            foreach ($matches[0] as $i => $match) {
-                $input = str_replace($match, 'ᐃ' . ($i + 1) . 'ᐃ', $input);
-            }
-        }
+        $count = 0;
+        $input = preg_replace_callback(
+            '/\s*(?<elm><(' . implode('|', $this->inline_elements) . ')[^>]*>)\s*(?<str>[^<]*?)\s*(?<clt><\/\2>)\s*/i',
+            function ($match) use (&$count): string
+            {
+                if(empty($match['str'])) {
+                    return $match[0];
+                }
+                $this->temporary_replacements_inline[] = sprintf(' %s%s%s ', $match['elm'], $match['str'], $match['clt']);
+                return 'ᐃᐃᐃ' . $count++ . 'ᐃᐃᐃ';
+            },
+            $input
+        );
 
-        $subject = $input;
 
-        $output = '';
+        $subject  = $input;
+        $output   = '';
 
         $next_line_indentation_level = 0;
 
@@ -130,10 +144,10 @@ class Indenter {
                 if ($match = preg_match($pattern, $subject, $matches)) {
                     if ($this->options['logging']) {
                         $this->log[] = [
-                            'rule' => $rule->asString(),
+                            'rule'    => $rule->asString(),
                             'pattern' => $pattern,
-                            'subject' => $subject,
-                            'match' => $matches[0]
+                            'match'   => $matches[0],
+                            'subject' => $subject
                         ];
                     }
 
@@ -174,18 +188,18 @@ class Indenter {
             }
         }
 
-        $output = preg_replace('/(<(\w+)[^>]*>)\s*(<\/\2>)/u', '\\1\\3', $output);
-
-        foreach ($this->temporary_replacements_script as $i => $original) {
-            $output = str_replace('<script>' . ($i + 1) . '</script>', $original, $output);
-        }
-
+        // Restore inline elements
         foreach ($this->temporary_replacements_inline as $i => $original) {
-            $output = str_replace('ᐃ' . ($i + 1) . 'ᐃ', $original, $output);
+            $output = str_replace('ᐃᐃᐃ'.$i.'ᐃᐃᐃ', $original, $output);
         }
 
-        $this->temporary_replacements_script = [];
-        $this->temporary_replacements_inline = [];
+        // Remove empty space inside & between tags
+        $output = preg_replace('/(<(\w+)[^>]*>)\s*(<\/\2>)|(?<=>) (?=<)/u', '$1$3', $output);
+
+        // Restore `<script|style>` bodys
+        foreach ($this->temporary_replacements_source as $i => $original) {
+            $output = preg_replace('/(\s*)(<(\w+)[^>]*>)ᐄᐄᐄ'.$i.'ᐄᐄᐄ(?=<\/\3>)/', '$1$2'.$original['str'].($original['lf'] ? "\n$1" : ''), $output);
+        }
 
         return trim($output);
     }

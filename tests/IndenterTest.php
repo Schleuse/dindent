@@ -34,8 +34,8 @@ class IndenterTest extends \PHPUnit\Framework\TestCase {
                 [
                     'rule' => 'NO',
                     'pattern' => '/^(<([a-z]+)(?:[^>]*)>(?:[^<]*)<\\/(?:\\2)>)/',
-                    'subject' => '<p></p>',
                     'match' => '<p></p>',
+                    'subject' => '<p></p>',
                 ]
             ]
         ];
