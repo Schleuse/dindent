@@ -1,9 +1,13 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Gajus\Dindent;
 
 /**
  * @link https://github.com/gajus/dindent for the canonical source repository
  * @license https://github.com/gajus/dindent/blob/master/LICENSE BSD 3-Clause
+ *
  * @phpstan-type LogEntry array{rule: string, pattern: string, subject: string, match: string}
  * @phpstan-type Options array{indentation_character: string, logging: boolean}
  */
@@ -15,7 +19,7 @@ class Indenter
     private array $log = [];
 
     /**
-     * @var Options
+     * @var Options[]
      */
     private array $options = [
         'indentation_character' => '    ',
@@ -23,23 +27,15 @@ class Indenter
     ];
 
     /**
-     * @var string[]
-     * inline text semantic elements @ https://developer.mozilla.org/en-US/docs/Web/HTML/Element#inline_text_semantics
+     * https://developer.mozilla.org/en-US/docs/Web/HTML/Element#inline_text_semantics
      */
     private array $inline_elements =  ['b', 'big', 'i', 's', 'small', 'tt', 'q', 'u', 'abbr', 'acronym', 'cite', 'code', 'data', 'dfn', 'em', 'kbd', 'mark', 'strong', 'samp', 'time', 'var', 'a', 'bdi', 'bdo', 'br', 'img', 'span', 'sub', 'sup', 'wbr'];
 
-    /**
-     * @var list<string|null>
-     */
     private array $temporary_replacements_source = [];
-
-    /**
-     * @var list<string|null>
-     */
     private array $temporary_replacements_inline = [];
 
     /**
-     * @param Options $options
+     * @param Options[] $options
      */
     public function __construct (array $options = []) {
         foreach ($options as $name => $value) {

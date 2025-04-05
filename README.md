@@ -1,6 +1,5 @@
 # Dindent
 
-[![Build Status](https://travis-ci.org/Schleuse/dindent.png?branch=master)](https://travis-ci.org/Schleuse/dindent)
 [![Coverage Status](https://coveralls.io/repos/Schleuse/dindent/badge.png?branch=master)](https://coveralls.io/r/Schleuse/dindent?branch=master)
 [![Latest Stable Version](https://poser.pugx.org/Schleuse/dindent/version.png)](https://packagist.org/packages/Schleuse/dindent)
 [![License](https://poser.pugx.org/Schleuse/dindent/license.png)](https://packagist.org/packages/Schleuse/dindent)
@@ -17,7 +16,7 @@ If you are looking to remove malicious code or make sure that your document is s
 * [DOMDocument::$formatOutput](http://www.php.net/manual/en/class.domdocument.php)
 * [Tidy](http://www.php.net/manual/en/book.tidy.php)
 
-If you need to indent your code in the development environment, beware that earlier mentioned libraries will attempt to fix your markup (that's their primary purpose; indentation is a by-product).
+If you only want to indent your code, beware that earlier mentioned libraries will attempt to fix your markup (that's their primary purpose; indentation is a by-product).
 
 ## Regex
 
@@ -162,7 +161,7 @@ $indenter->setElementType('bar', \Gajus\Dindent\Indenter::ELEMENT_TYPE_INLINE);
 
 # CLI
 
-Dindent can be used via the CLI script `./bin/dindent.php`.
+Dindent can be used via the CLI script;
 
 ```sh
 php ./bin/dindent.php
@@ -202,12 +201,8 @@ Examples:
 
 ## Installation
 
-The recommended way to use Dindent is through [Composer](https://getcomposer.org/).
+The recommended way to use Dindent is through [Composer](https://getcomposer.org).
 
-```json
-{
-    "require": {
-        "Schleuse/dindent": "2.*"
-    }
-}
+```sh
+composer req schleuse/dindent:^3.0
 ```
