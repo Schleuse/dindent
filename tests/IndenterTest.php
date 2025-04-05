@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use PHPUnit\Framework\Attributes\DataProvider;
 
 class IndenterTest extends \PHPUnit\Framework\TestCase {
@@ -34,8 +36,8 @@ class IndenterTest extends \PHPUnit\Framework\TestCase {
                 [
                     'rule' => 'NO',
                     'pattern' => '/^(<([a-z]+)(?:[^>]*)>(?:[^<]*)<\\/(?:\\2)>)/',
-                    'subject' => '<p></p>',
                     'match' => '<p></p>',
+                    'subject' => '<p></p>',
                 ]
             ]
         ];
