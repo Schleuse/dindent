@@ -21,7 +21,7 @@ class CLITest extends \PHPUnit\Framework\TestCase {
 
     public function indentProvider () {
         return array_map(function ($e) {
-            return array(pathinfo($e, \PATHINFO_FILENAME));
+            return [pathinfo($e, \PATHINFO_FILENAME)];
         }, glob(__DIR__ . '/input/*.html'));
     }
 }

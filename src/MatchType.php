@@ -7,18 +7,15 @@ namespace Gajus\Dindent;
 
 enum MatchType
 {
-    case NoIndent;
     case IndentDecrease;
     case IndentIncrease;
-    case Discard;
-
+    case IndentKeep;
 
     public function asString(): string {
         return match($this) {
-            MatchType::NoIndent => 'NO',
             MatchType::IndentDecrease => 'DECREASE',
             MatchType::IndentIncrease => 'INCREASE',
-            MatchType::Discard => 'DISCARD'
+            MatchType::IndentKeep     => 'KEEP'
         };
     }
 }

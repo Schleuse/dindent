@@ -9,7 +9,7 @@ function error ($error) {
     exit(1);
 }
 
-$options = getopt('', array('input:', 'indentation_character:', 'inline:', 'block:'));
+$options = getopt('', ['input:', 'indentation_character:', 'inline:', 'block:']);
 
 if (!isset($_SERVER['argv'][1])) {
     echo '
@@ -51,7 +51,7 @@ if (!isset($options['input'])) {
     error('"input" file does not exist.');
 }
 
-$indenter = new \Gajus\Dindent\Indenter(isset($options['indentation_character']) ? array('indentation_character' => $options['indentation_character']) : array());
+$indenter = new \Gajus\Dindent\Indenter(['indentation_character' => $options['indentation_character'] ?? '    ', 'logging' => true]);
 
 if (isset($options['inline'])) {
     foreach (explode(',', $options['inline']) as $element_name) {
