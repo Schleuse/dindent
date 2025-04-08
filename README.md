@@ -1,6 +1,5 @@
 # Dindent
 
-[![Build Status](https://travis-ci.org/Schleuse/dindent.png?branch=master)](https://travis-ci.org/Schleuse/dindent)
 [![Coverage Status](https://coveralls.io/repos/Schleuse/dindent/badge.png?branch=master)](https://coveralls.io/r/Schleuse/dindent?branch=master)
 [![Latest Stable Version](https://poser.pugx.org/Schleuse/dindent/version.png)](https://packagist.org/packages/Schleuse/dindent)
 [![License](https://poser.pugx.org/Schleuse/dindent/license.png)](https://packagist.org/packages/Schleuse/dindent)
@@ -17,13 +16,21 @@ If you are looking to remove malicious code or make sure that your document is s
 * [DOMDocument::$formatOutput](http://www.php.net/manual/en/class.domdocument.php)
 * [Tidy](http://www.php.net/manual/en/book.tidy.php)
 
-If you need to indent your code in the development environment, beware that earlier mentioned libraries will attempt to fix your markup (that's their primary purpose; indentation is a by-product).
+If you only want to indent your code, beware that earlier mentioned libraries will attempt to fix your markup (that's their primary purpose; indentation is a by-product).
 
 ## Regex
 
 There is a [good reason not to use regular expression to parse HTML](http://stackoverflow.com/questions/1732348/regex-match-open-tags-except-xhtml-self-contained-tags/1732454#1732454). However, DOM parser will rebuild the whole HTML document. It will add missing tags, close open block tags, or remove anything that's not a valid HTML. This is what Tidy does, DOM, etc. This behavior is undesirable when debugging HTML output. Regex based parser will not rebuild the document. Dindent will only add indentation, without otherwise affecting the markup.
 
 The above is also the reason why [Chrome DevTools](https://developers.google.com/chrome-developer-tools/) is not a direct replacement for Dindent.
+
+## Installation
+
+The recommended way to use Dindent is through [Composer](https://getcomposer.org).
+
+```sh
+composer req schleuse/dindent:^3.0
+```
 
 ## Use
 
@@ -32,16 +39,16 @@ $indenter = new \Gajus\Dindent\Indenter();
 $indenter->indent('[..]');
 ```
 
-In the above example, `[..]` is a placeholder for:
+<details><summary>In the above example, `[..]` is a placeholder for:</summary>
 
 ```html
 <!DOCTYPE html>
 <html>
 <head></head>
 <body>
+<script>console.log('te> <st')</script>
     <script>
-    console.log('te> <st');
-    function () {
+    function test () {
         test; <!-- <a> -->
     }
     </script>
@@ -50,24 +57,25 @@ In the above example, `[..]` is a placeholder for:
     <div><table border="1" style="background-color: red;"><tr><td>A cell    test!</td>
 <td colspan="2" rowspan="2"><table border="1" style="background-color: green;"><tr> <td>Cell</td><td colspan="2" rowspan="2"></td></tr><tr>
         <td><input><input><input></td></tr><tr><td>Cell</td><td>Cell</td><td>Ce
-            ll</td></tr></table></td></tr><tr><td>Test <span>Ce       ll</span></td></tr><tr><td>Cell</td><td>Cell</td><td>Cell</td></tr></table></div></div>
+            ll</td></tr></table></td></tr><tr><td>Test <span>Ce       ll</span></td><td>Test <span>Ce ll</span> </td><td>Test <span>Ce </span> ll</td></tr><tr><td>Cell</td><td>Cell</td><td>Cell</td></tr></table></div></div>
+    <area>xx</area><xyz/><wbr><hr><hr/>
 </body>
 </html>
 ```
+</details>
+<details><summary>Dindent will convert it to:</summary>
 
-Dindent will convert it to:
-
-```HTML
+```html
 <!DOCTYPE html>
 <html>
     <head></head>
     <body>
+        <script>console.log('te> <st')</script>
         <script>
-    console.log('te> <st');
-    function () {
+    function test () {
         test; <!-- <a> -->
     }
-    </script>
+        </script>
         <div>
             <script src="//ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
             <div>
@@ -97,6 +105,8 @@ Dindent will convert it to:
                     </tr>
                     <tr>
                         <td>Test <span>Ce ll</span></td>
+                        <td>Test <span>Ce ll</span></td>
+                        <td>Test <span>Ce</span> ll</td>
                     </tr>
                     <tr>
                         <td>Cell</td>
@@ -106,18 +116,24 @@ Dindent will convert it to:
                 </table>
             </div>
         </div>
+        <area>xx</area>
+        <xyz/>
+        <wbr>
+        <hr>
+        <hr/>
     </body>
 </html>
 ```
+</details>
 
 ## Options
 
 `Indenter` constructor accepts the following options that control indentation:
 
-|Name|Description|
-|---|---|
-|`indentation_character`|Character(s) used for indentation. Defaults to 4 whitespace characters.|
-|`logging`|Keep Track of every transformation and verify. May be memory intensive. Defaults to false|
+|Name|Description|Default|
+|---|---|---|
+|`indentation_character`|Character(s) used for indentation. [ info; `null` removes all line-breaks ]|4 space-char|
+|`logging`|Keep Track of every transformation and verify. May be memory intensive.|`false`|
 
 ### Set element type
 
@@ -143,7 +159,7 @@ Dindent identifies the following elements as "inline": (DEPRECATED)
 * abbr, (acronym), cite, code, data, dfn, em, kbd, mark, strong, samp, time, var
 * a, bdi, bdo, br, img, span, sub, sup, wbr
 
-This is a subset of the inline elements defined in the [MDN](https://developer.mozilla.org/en-US/docs/Web/HTML/Element#inline_text_semantics).
+This is a [subset of the inline elements](https://developer.mozilla.org/en-US/docs/Web/HTML/Element#inline_text_semantics) ignoring [void elements](https://developer.mozilla.org/en-US/docs/Glossary/Void_element).
 
 All other elements are treated as block.
 
@@ -162,52 +178,14 @@ $indenter->setElementType('bar', \Gajus\Dindent\Indenter::ELEMENT_TYPE_INLINE);
 
 # CLI
 
-Dindent can be used via the CLI script `./bin/dindent.php`.
+Dindent can be used via the CLI script;
 
 ```sh
-php ./bin/dindent.php
-
-Indent HTML.
-
-Options:
-    --input=./input_file.html
-        Input file
-    --indentation_character="    "
-        Character(s) used for indentation. Defaults to 4 whitespace characters.
-    --inline
-        A list of comma separated "inline" element names.
-    --block
-        A list of comma separated "block" element names.
-
-Examples:
-    ./dindent.php --input="./input.html"
-        Indent "input.html" file and print the output to STDOUT.
-
-    ./dindent.php --input="./input.html" | tee ./output.html
-        Indent "input.html" file and dump the output to "output.html".
-
-    ./dindent.php --input="./input.html" --indentation_character="\t"
-        Indent "input.html" file using tab to indent the markup.
-
-    ./dindent.php --input="./input.html" --inline="div,p"
-        Indent "input.html" file treating <div> and <p> elements as inline.
-
-    ./dindent.php --input="./input.html" --block="span,em"
-        Indent "input.html" file treating <span> and <em> elements as block.
+php bin/dindent.php
 ```
+
+https://github.com/Schleuse/dindent/blob/2ffc1544ba192dad9eb21af9cbce6ab8aae48a36/bin/dindent.php#L14-L24
 
 ## Known issues
 
-* Does not treat comments nicely and IE conditional blocks.
-
-## Installation
-
-The recommended way to use Dindent is through [Composer](https://getcomposer.org/).
-
-```json
-{
-    "require": {
-        "Schleuse/dindent": "2.*"
-    }
-}
-```
+* Does not treat comments nicely (ToCheck)
