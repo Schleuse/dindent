@@ -25,12 +25,15 @@
 	},
 	"scripts": {
 		"test": "phpunit",
-		"phpstan": "phpstan"
+		"phpstan": "phpstan",
+		"format": "php-cs-fixer fix"
+
 	},
 	"require-dev": {
 		"php-coveralls/php-coveralls": "^2.1",
 		"phpunit/phpunit": "^10.0",
-		"phpstan/phpstan": "^2.1"
+		"phpstan/phpstan": "^2.1",
+		"friendsofphp/php-cs-fixer": "^3.76"
 	},
 	"autoload": {
 		"psr-4": {
