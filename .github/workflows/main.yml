@@ -53,3 +53,19 @@ jobs:
         run: "COMPOSER_ROOT_VERSION=dev-master composer update --no-progress --prefer-dist ${{ matrix.flags }}"
       - name: "PHPUnit"
         run: "php vendor/bin/phpunit"
+  phpstan:
+    runs-on: "ubuntu-latest"
+    name: "PHPStan"
+    steps:
+      - name: "Checkout"
+        uses: "actions/checkout@v4"
+      - name: "Install PHP"
+        uses: "shivammathur/setup-php@v2"
+        with:
+          coverage: "none"
+          php-version: "8.4"
+          tools: composer:v2
+      - name: "Install dependencies"
+        run: composer install
+      - name: "PHPStan"
+        run: "php vendor/bin/phpstan"

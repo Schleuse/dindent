@@ -19,7 +19,7 @@ class Indenter
     private array $log = [];
 
     /**
-     * @var Options[]
+     * @var Options
      */
     private array $options = [
         'indentation_character' => '    ',
