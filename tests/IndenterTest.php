@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\Attributes\DataProvider;
 
-class IndenterTest extends \PHPUnit\Framework\TestCase {
-    public function testInvalidSetupOption (): void {
+class IndenterTest extends \PHPUnit\Framework\TestCase
+{
+    public function testInvalidSetupOption(): void
+    {
         $this->expectException(\Gajus\Dindent\Exception\InvalidArgumentException::class);
         $this->expectExceptionMessage('Unrecognized option.');
         new \Gajus\Dindent\Indenter(['foo' => 'bar']);
     }
 
-    public function testIndentCustomCharacter (): void {
+    public function testIndentCustomCharacter(): void
+    {
         $indenter = new \Gajus\Dindent\Indenter(['indentation_character' => 'X']);
 
         $indented = $indenter->indent('<p><p></p></p>');
@@ -21,7 +24,8 @@ class IndenterTest extends \PHPUnit\Framework\TestCase {
         $this->assertSame($expected_output, str_replace("\n", '', $indented));
     }
 
-    public function testOneLineNoIndent (): void {
+    public function testOneLineNoIndent(): void
+    {
         $indenter = new \Gajus\Dindent\Indenter(['indentation_character' => null]);
 
         $indented = $indenter->indent("\n<p>\n  <p></p>\n</p>\n\n");
@@ -32,7 +36,8 @@ class IndenterTest extends \PHPUnit\Framework\TestCase {
     }
 
     #[DataProvider('indentProvider')]
-    public function testIndent ($name): void {
+    public function testIndent($name): void
+    {
         $indenter = new \Gajus\Dindent\Indenter();
 
         $input = file_get_contents(__DIR__ . '/sample/input/' . $name . '.html');
@@ -41,7 +46,8 @@ class IndenterTest extends \PHPUnit\Framework\TestCase {
         $this->assertSame($expected_output, $indenter->indent($input));
     }
 
-    public static function indentProvider():array {
+    public static function indentProvider(): array
+    {
         return array_map(function ($e) {
             return [pathinfo($e, \PATHINFO_FILENAME)];
         }, glob(__DIR__ . '/sample/input/*.html'));
