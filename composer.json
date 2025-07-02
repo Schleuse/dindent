@@ -24,11 +24,13 @@
 		"indorock/dindent": "*"
 	},
 	"scripts": {
-		"test": "phpunit"
+		"test": "phpunit",
+		"phpstan": "phpstan"
 	},
 	"require-dev": {
 		"php-coveralls/php-coveralls": "^2.1",
-		"phpunit/phpunit": "^10.0"
+		"phpunit/phpunit": "^10.0",
+		"phpstan/phpstan": "^2.1"
 	},
 	"autoload": {
 		"psr-4": {
