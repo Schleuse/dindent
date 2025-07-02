@@ -216,7 +216,7 @@ class Indenter
 
         // Restore `<script|style>` bodys
         foreach ($this->temporary_replacements_source as $i => $original) {
-          $output = preg_replace('/(\s*)(<[^>]+>)ᐄᐄᐄ'.$i.'ᐄᐄᐄ/', '$1$2'.$original['str'].($original['lf'] ? "\n$1" : ''), $output);
+          $output = preg_replace('/(\s*)(<[^>]+>)ᐄᐄᐄ'.$i.'ᐄᐄᐄ/', '$1$2'.$original['str'].($original['lf'] ? "$1" : ''), $output);
         }
 
         return rtrim($output);
