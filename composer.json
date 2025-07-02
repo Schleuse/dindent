@@ -24,7 +24,7 @@
 		"indorock/dindent": "*"
 	},
 	"scripts": {
-		"test": "phpunit -c tests/UnitTests.xml"
+		"test": "phpunit"
 	},
 	"require-dev": {
 		"php-coveralls/php-coveralls": "^2.1",

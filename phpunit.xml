@@ -16,12 +16,12 @@
 >
   <testsuites>
     <testsuite name="All tests">
-      <directory>.</directory>
+      <directory>./tests</directory>
     </testsuite>
   </testsuites>
   <source>
     <include>
-      <directory>../src/</directory>
+      <directory>./src</directory>
     </include>
   </source>
 </phpunit>
