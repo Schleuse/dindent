@@ -1,16 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 use PHPUnit\Framework\Attributes\DataProvider;
 
 class IndenterTest extends \PHPUnit\Framework\TestCase {
     public function testInvalidSetupOption (): void {
         $this->expectException(\Gajus\Dindent\Exception\InvalidArgumentException::class);
         $this->expectExceptionMessage('Unrecognized option.');
-        new \Gajus\Dindent\Indenter(array('foo' => 'bar'));
+        new \Gajus\Dindent\Indenter(['foo' => 'bar']);
     }
 
     public function testIndentCustomCharacter (): void {
-        $indenter = new \Gajus\Dindent\Indenter(array('indentation_character' => 'X'));
+        $indenter = new \Gajus\Dindent\Indenter(['indentation_character' => 'X']);
 
         $indented = $indenter->indent('<p><p></p></p>');
 
@@ -19,26 +21,14 @@ class IndenterTest extends \PHPUnit\Framework\TestCase {
         $this->assertSame($expected_output, str_replace("\n", '', $indented));
     }
 
-    #[DataProvider('logProvider')]
-    public function testLog ($token, $log): void {
-        $indenter = new \Gajus\Dindent\Indenter([ 'logging' => true ]);
-        $indenter->indent($token);
+    public function testOneLineNoIndent (): void {
+        $indenter = new \Gajus\Dindent\Indenter(['indentation_character' => null]);
 
-        $this->assertSame(array($log), $indenter->getLog());
-    }
+        $indented = $indenter->indent("\n<p>\n  <p></p>\n</p>\n\n");
 
-    public static function logProvider(): array {
-        return [
-            [
-                '<p></p>',
-                [
-                    'rule' => 'NO',
-                    'pattern' => '/^(<([a-z]+)(?:[^>]*)>(?:[^<]*)<\\/(?:\\2)>)/',
-                    'subject' => '<p></p>',
-                    'match' => '<p></p>',
-                ]
-            ]
-        ];
+        $expected_output = '<p><p></p></p>';
+
+        $this->assertSame($expected_output, $indented);
     }
 
     #[DataProvider('indentProvider')]
@@ -53,7 +43,7 @@ class IndenterTest extends \PHPUnit\Framework\TestCase {
 
     public static function indentProvider():array {
         return array_map(function ($e) {
-            return array(pathinfo($e, \PATHINFO_FILENAME));
+            return [pathinfo($e, \PATHINFO_FILENAME)];
         }, glob(__DIR__ . '/sample/input/*.html'));
     }
 }
