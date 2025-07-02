@@ -23,20 +23,20 @@ class Indenter
      */
     private array $options = [
         'indentation_character' => '    ',
-        'logging' => false
+        'logging' => false,
     ];
 
     // https://developer.mozilla.org/en-US/docs/Glossary/Void_element
     private array $void_elements = [
         'area','base','br','col','embed','hr','img',
-        'input','link','meta','source','track','wbr'
+        'input','link','meta','source','track','wbr',
     ];
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element#inline_text_semantics
     private array $inline_elements = [
         'a', 'abbr', 'b', 'bdi', 'bdo', 'big', 'cite',
         'code', 'data', 'dfn', 'em', 'i', 'kbd', 'mark',
         'q', 's', 'samp', 'small', 'span', 'strong',
-        'sub', 'sup', 'time', 'u', 'var', 'acronym','tt'
+        'sub', 'sup', 'time', 'u', 'var', 'acronym','tt',
     ];
 
     private array $temporary_replacements_source = [];
@@ -45,7 +45,8 @@ class Indenter
     /**
      * @param Options[] $options
      */
-    public function __construct (array $options = []) {
+    public function __construct(array $options = [])
+    {
         foreach ($options as $name => $value) {
             if (!array_key_exists($name, $this->options)) {
                 throw new Exception\InvalidArgumentException('Unrecognized option.');
@@ -59,10 +60,11 @@ class Indenter
      * @param string $element_name Element name, e.g. "b".
      * @param ElementType $type
      */
-    public function setElementType (string $element_name, ElementType $type): void {
+    public function setElementType(string $element_name, ElementType $type): void
+    {
         if ($type === ElementType::Block) {
             $this->inline_elements = array_diff($this->inline_elements, [$element_name]);
-        } else if ($type === ElementType::Inline) {
+        } elseif ($type === ElementType::Inline) {
             $this->inline_elements[] = $element_name;
         } else {
             throw new Exception\InvalidArgumentException('Unrecognized element type.');
@@ -74,7 +76,8 @@ class Indenter
      * @param string $input HTML input.
      * @return string Indented HTML.
      */
-    public function indent(string $input): string {
+    public function indent(string $input): string
+    {
         $this->log = [];
 
 
@@ -87,15 +90,14 @@ class Indenter
         $count = 0;
         $input = preg_replace_callback(
             '/(?<elm><(script|style)[^>]*>)(?<str>[\s\S]*?)(?<lf>\n?)\s*(?=<\/\2>)/i',
-            function ($match) use (&$count): string
-            {
-                if(empty($match['str'])) {
+            function ($match) use (&$count): string {
+                if (empty($match['str'])) {
                     return $match[0];
                 }
                 $this->temporary_replacements_source[] = $match;
-                return $match['elm'].'ᐄᐄᐄ'.$count++.'ᐄᐄᐄ';
+                return $match['elm'] . 'ᐄᐄᐄ' . $count++ . 'ᐄᐄᐄ';
             },
-            $input
+            $input,
         );
 
         // Shrink global whitespace
@@ -106,23 +108,22 @@ class Indenter
         // Temporary remove inline elements
         $count = 0;
         $input = preg_replace_callback(
-            '/\s*(?<elm><('.implode('|', $this->inline_elements).')[^>]*>)\s*(?<str>[^<]*?)\s*(?<clt><\/\2>)\s*/i',
-            function ($match) use (&$count): string
-            {
-                if(empty($match['str'])) {
+            '/\s*(?<elm><(' . implode('|', $this->inline_elements) . ')[^>]*>)\s*(?<str>[^<]*?)\s*(?<clt><\/\2>)\s*/i',
+            function ($match) use (&$count): string {
+                if (empty($match['str'])) {
                     return $match[0];
                 }
                 $this->temporary_replacements_inline[] = sprintf(' %s%s%s ', $match['elm'], $match['str'], $match['clt']);
-                return 'ᐃᐃᐃ'.$count++.'ᐃᐃᐃ';
+                return 'ᐃᐃᐃ' . $count++ . 'ᐃᐃᐃ';
             },
-            $input
+            $input,
         );
 
         // Discard useless whitespace
         $input = preg_replace('/(<[^>]+>) (?=<)/', '$1', ltrim($input));
 
         // NO line-breake mode!
-        if(null === $this->options['indentation_character']) {
+        if (null === $this->options['indentation_character']) {
             $this->options['logging'] = false;// HACK
 
             $subject  = null;
@@ -131,15 +132,14 @@ class Indenter
             $output   = '';
             $subject  = preg_replace_callback(
                 '/<!DOCTYPE[^>]+>/i',
-                function ($match) use (&$output): string
-                {
-                    $output = $match[0]."\n";
+                function ($match) use (&$output): string {
+                    $output = $match[0] . "\n";
                     return '';
                 },
-                $input
+                $input,
             );
 
-            $indLen = -1*strlen($this->options['indentation_character']);
+            $indLen = -1 * strlen($this->options['indentation_character']);
             $indent   = '';
             $patterns = [
                 // comment
@@ -147,7 +147,7 @@ class Indenter
                 // standart element
                 '/^<([a-z][\w\-]*)(?: [^<]*)?>[^<]*<\/\1>/' => MatchType::IndentKeep,
                 // implied closing
-                '/^<(?:'.implode('|', $this->void_elements).')[^>]*>/' => MatchType::IndentKeep,
+                '/^<(?:' . implode('|', $this->void_elements) . ')[^>]*>/' => MatchType::IndentKeep,
                 // self-closing
                 '/^<[^>]+\/>/' => MatchType::IndentKeep,
 
@@ -156,10 +156,10 @@ class Indenter
                 // opening tag
                 '/^<[^>]+>/' => MatchType::IndentIncrease,
                 // text node
-                '/^[^<]+/' => MatchType::IndentKeep
+                '/^[^<]+/' => MatchType::IndentKeep,
             ];
         }
-        while($subject) {
+        while ($subject) {
             foreach ($patterns as $pattern => $rule) {
                 if (preg_match($pattern, $subject, $matches)) {// TODO; check speed `PREG_OFFSET_CAPTURE` vs `mb_strlen()`
                     if ($this->options['logging']) {
@@ -167,23 +167,24 @@ class Indenter
                             'rule'    => $rule->asString(),
                             'pattern' => $pattern,
                             'match'   => $matches[0],
-                            'subject' => $subject
+                            'subject' => $subject,
                         ];
                     }
 
                     $subject = mb_substr($subject, mb_strlen($matches[0]));
 
-                    switch($rule) {
+                    switch ($rule) {
                         case MatchType::IndentIncrease:
-                            $output .= $indent.$matches[0]."\n";
+                            $output .= $indent . $matches[0] . "\n";
                             $indent .= $this->options['indentation_character'];
                             break 2;
 
                         case MatchType::IndentDecrease:
                             $indent = substr($indent, 0, $indLen);
 
+                            // no break
                         case MatchType::IndentKeep:
-                            $output .= $indent.$matches[0]."\n";
+                            $output .= $indent . $matches[0] . "\n";
                             break 2;
 
                         default:
@@ -201,14 +202,16 @@ class Indenter
             }
 
             if ($interpreted_input !== $input) {
-                if(!empty($this->log)) var_dump($this->log);
+                if (!empty($this->log)) {
+                    var_dump($this->log);
+                }
                 throw new Exception\RuntimeException("\n{$interpreted_input}\n!==\n{$input}\n");
             }
         }
 
         // Restore inline elements
         foreach ($this->temporary_replacements_inline as $i => $original) {
-            $output = str_replace('ᐃᐃᐃ'.$i.'ᐃᐃᐃ', $original, $output);
+            $output = str_replace('ᐃᐃᐃ' . $i . 'ᐃᐃᐃ', $original, $output);
         }
 
         // Remove empty space inside & between tags
@@ -216,7 +219,7 @@ class Indenter
 
         // Restore `<script|style>` bodys
         foreach ($this->temporary_replacements_source as $i => $original) {
-          $output = preg_replace('/(\s*)(<[^>]+>)ᐄᐄᐄ'.$i.'ᐄᐄᐄ/', '$1$2'.$original['str'].($original['lf'] ? "$1" : ''), $output);
+            $output = preg_replace('/(\s*)(<[^>]+>)ᐄᐄᐄ' . $i . 'ᐄᐄᐄ/', '$1$2' . $original['str'] . ($original['lf'] ? "$1" : ''), $output);
         }
 
         return rtrim($output);
@@ -227,7 +230,8 @@ class Indenter
      *
      * @return LogEntry[]
      */
-    public function getLog(): array {
+    public function getLog(): array
+    {
         return $this->log;
     }
 }
