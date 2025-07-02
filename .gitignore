@@ -1,3 +1,4 @@
-.phpunit.cache/
+.cache/*
+!.cache/.gitkeep
 composer.lock
 vendor/

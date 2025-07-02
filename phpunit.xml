@@ -5,7 +5,7 @@
   processIsolation="false"
   stopOnFailure="false"
   bootstrap="vendor/autoload.php"
-  cacheDirectory=".phpunit.cache"
+  cacheDirectory=".cache/phpunit.cache"
   backupStaticProperties="false"
   displayDetailsOnIncompleteTests="true"
   displayDetailsOnPhpunitDeprecations="true"
