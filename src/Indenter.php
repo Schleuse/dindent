@@ -83,11 +83,25 @@ class Indenter
 
         // Remove trailing spaces
         $input = preg_replace('/\h+$/m', '', $input);
+
+        $count = 0;
+        // Dindent does not touch `<pre|textarea>` body. Instead, it temporary removes it from the code, indents the input, and restores the body.
+        $input = preg_replace_callback(
+            '/(?<elm><(pre|textarea)[^>]*>)(?<str>[\s\S]*?)(?<lf>\n?)\s*(?=<\/\2>)/i',
+            function ($match) use (&$count): string {
+                if (empty($match['str'])) {
+                    return $match[0];
+                }
+                $this->temporary_replacements_source[] = $match;
+                return $match['elm'] . 'ᐄᐄᐄ' . $count++ . 'ᐄᐄᐄ';
+            },
+            $input,
+        );
+
         // Remove empty lines
         $input = preg_replace('/^\n+/m', '', $input);
 
         // Dindent does not indent `<script|style>` body. Instead, it temporary removes it from the code, indents the input, and restores the body.
-        $count = 0;
         $input = preg_replace_callback(
             '/(?<elm><(script|style)[^>]*>)(?<str>[\s\S]*?)(?<lf>\n?)\s*(?=<\/\2>)/i',
             function ($match) use (&$count): string {
@@ -102,11 +116,11 @@ class Indenter
 
         // Shrink global whitespace
         $input = preg_replace('/\s+/', ' ', $input);
-        // Remove leading spaces
+        // Remove leading whitespace
         $input = preg_replace('/^ /m', '', $input);
 
+        $count = 0; // keep!
         // Temporary remove inline elements
-        $count = 0;
         $input = preg_replace_callback(
             '/\s*(?<elm><(' . implode('|', $this->inline_elements) . ')[^>]*>)\s*(?<str>[^<]*?)\s*(?<clt><\/\2>)\s*/i',
             function ($match) use (&$count): string {
@@ -126,8 +140,8 @@ class Indenter
         if (null === $this->options['indentation_character']) {
             $this->options['logging'] = false;// HACK
 
+            $output   = str_replace("\n", '', $input);
             $subject  = null;
-            $output   = $input;
         } else {
             $output   = '';
             $subject  = preg_replace_callback(
@@ -215,9 +229,9 @@ class Indenter
         }
 
         // Remove empty space inside & between tags
-        $output = preg_replace('/(<[^>]+>) (?=<\/)/', '$1', $output);
+        $output = preg_replace('/(<[^>]+>) (?=<)/', '$1', $output);
 
-        // Restore `<script|style>` bodys
+        // Restore `<pre|textarea>` & `<script|style>` bodys
         foreach ($this->temporary_replacements_source as $i => $original) {
             $output = preg_replace('/(\s*)(<[^>]+>)ᐄᐄᐄ' . $i . 'ᐄᐄᐄ/', '$1$2' . $original['str'] . ($original['lf'] ? "$1" : ''), $output);
         }
