@@ -15,7 +15,7 @@
   displayDetailsOnTestsThatTriggerErrors="true"
   displayDetailsOnTestsThatTriggerNotices="true"
   displayDetailsOnTestsThatTriggerWarnings="true"
-  >
+>
   <testsuites>
     <testsuite name="All tests">
       <directory>./tests</directory>
