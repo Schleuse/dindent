@@ -9,7 +9,9 @@ namespace Gajus\Dindent;
  * @license https://github.com/gajus/dindent/blob/master/LICENSE BSD 3-Clause
  *
  * @phpstan-type LogEntry array{rule: string, pattern: string, subject: string, match: string}
- * @phpstan-type Options array{indentation_character: string, logging: boolean}
+ * @phpstan-type Options array{indentation_character: string|null, logging: bool}
+ * @phpstan-type FormatReplacement array{elm: string, str: string}
+ * @phpstan-type SourceReplacement array{str: string, lf: bool|string}
  */
 class Indenter
 {
@@ -27,11 +29,13 @@ class Indenter
     ];
 
     // https://developer.mozilla.org/en-US/docs/Glossary/Void_element
+    /** @var list<string> */
     private array $void_elements = [
         'area','base','br','col','embed','hr','img',
         'input','link','meta','source','track','wbr',
     ];
     // https://developer.mozilla.org/en-US/docs/Web/HTML/Element#inline_text_semantics
+    /** @var array<int, string> */
     private array $inline_elements = [
         'a', 'abbr', 'b', 'bdi', 'bdo', 'big', 'cite',
         'code', 'data', 'dfn', 'em', 'i', 'kbd', 'mark',
@@ -39,12 +43,15 @@ class Indenter
         'sub', 'sup', 'time', 'u', 'var', 'acronym','tt',
     ];
 
+    /** @var list<FormatReplacement> */
     private array $temporary_replacements_format = [];
+    /** @var list<SourceReplacement> */
     private array $temporary_replacements_source = [];
+    /** @var list<string> */
     private array $temporary_replacements_inline = [];
 
     /**
-     * @param Options[] $options
+     * @param array{indentation_character?: string|null, logging?: bool} $options
      */
     public function __construct(array $options = [])
     {
@@ -53,6 +60,7 @@ class Indenter
                 throw new Exception\InvalidArgumentException('Unrecognized option.');
             }
 
+            // @phpstan-ignore-next-line
             $this->options[$name] = $value;
         }
     }
@@ -158,14 +166,18 @@ class Indenter
         // Discard useless whitespace
         $input = preg_replace('/(<[^>]+>) (?=<)/', '$1', ltrim($input));
 
+        $output   = '';
+        $subject  = null;
+        $indLen   = 0;
+        $indent   = '';
+        $patterns = [];
+
         // NO line-breake mode!
         if (null === $this->options['indentation_character']) {
             $this->options['logging'] = false;// HACK
 
-            $output   = str_replace("\n", '', $input);
-            $subject  = null;
+            $output = str_replace("\n", '', $input);
         } else {
-            $output   = '';
             $subject  = preg_replace_callback(
                 '/<!DOCTYPE[^>]+>/i',
                 function ($match) use (&$output): string {
@@ -175,8 +187,7 @@ class Indenter
                 $input,
             );
 
-            $indLen = -1 * strlen($this->options['indentation_character']);
-            $indent   = '';
+            $indLen   = -1 * strlen($this->options['indentation_character']);
             $patterns = [
                 // comment
                 '/^<!--[\s\S]*?-->/' => MatchType::IndentKeep,
@@ -226,7 +237,6 @@ class Indenter
                         default:
                             throw new Exception\RuntimeException("MatchType?:{$rule}");
                     }
-                    throw new Exception\RuntimeException("MissedMatch!:{$matches[0]}");
                 }
             }
         }

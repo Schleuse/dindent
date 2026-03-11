@@ -36,20 +36,24 @@ class IndenterTest extends \PHPUnit\Framework\TestCase
     }
 
     #[DataProvider('indentProvider')]
-    public function testIndent($name): void
+    public function testIndent(string $name): void
     {
         $indenter = new \Gajus\Dindent\Indenter();
 
         $input = file_get_contents(__DIR__ . '/sample/input/' . $name . '.html');
         $expected_output = file_get_contents(__DIR__ . '/sample/output/' . $name . '.html');
 
+        assert($input !== false);
+        assert($expected_output !== false);
+
         $this->assertSame($expected_output, $indenter->indent($input));
     }
 
+    /** @return array<int, array<int, string>> */
     public static function indentProvider(): array
     {
         return array_map(function ($e) {
             return [pathinfo($e, \PATHINFO_FILENAME)];
-        }, glob(__DIR__ . '/sample/input/*.html'));
+        }, glob(__DIR__ . '/sample/input/*.html') ?: []);
     }
 }
