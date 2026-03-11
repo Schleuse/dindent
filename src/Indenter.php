@@ -1,57 +1,83 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Gajus\Dindent;
 
 /**
  * @link https://github.com/gajus/dindent for the canonical source repository
  * @license https://github.com/gajus/dindent/blob/master/LICENSE BSD 3-Clause
+ *
+ * @phpstan-type LogEntry array{rule: string, pattern: string, subject: string, match: string}
+ * @phpstan-type Options array{indentation_character: string|null, logging: bool}
+ * @phpstan-type FormatReplacement array{elm: string, str: string}
+ * @phpstan-type SourceReplacement array{str: string, lf: bool|string}
  */
-class Indenter {
-    private $log = array();
-    private $options = array(
-                'indentation_character' => '    ',
-                'logging' => false
-            );
-
-    // inline text semantic elements @ https://developer.mozilla.org/en-US/docs/Web/HTML/Element#inline_text_semantics
-    private $inline_elements = array('b', 'big', 'i', 's', 'small', 'tt', 'q', 'u', 'abbr', 'acronym', 'cite', 'code', 'data', 'dfn', 'em', 'kbd', 'mark', 'strong', 'samp', 'time', 'var', 'a', 'bdi', 'bdo', 'br', 'img', 'span', 'sub', 'sup', 'wbr');
-    private $temporary_replacements_script = array();
-    private $temporary_replacements_inline = array();
-
-    const ELEMENT_TYPE_BLOCK = 0;
-    const ELEMENT_TYPE_INLINE = 1;
-
-    const MATCH_INDENT_NO = 0;
-    const MATCH_INDENT_DECREASE = 1;
-    const MATCH_INDENT_INCREASE = 2;
-    const MATCH_DISCARD = 3;
+class Indenter
+{
+    /**
+     * @var LogEntry[]
+     */
+    private array $log = [];
 
     /**
-     * @param array $options
+     * @var Options
      */
-    public function __construct (array $options = array()) {
+    private array $options = [
+        'indentation_character' => '    ',
+        'logging' => false,
+    ];
+
+    // https://developer.mozilla.org/en-US/docs/Glossary/Void_element
+    /** @var list<string> */
+    private array $void_elements = [
+        'area','base','br','col','embed','hr','img',
+        'input','link','meta','source','track','wbr',
+    ];
+    // https://developer.mozilla.org/en-US/docs/Web/HTML/Element#inline_text_semantics
+    /** @var array<int, string> */
+    private array $inline_elements = [
+        'a', 'abbr', 'b', 'bdi', 'bdo', 'big', 'cite',
+        'code', 'data', 'dfn', 'em', 'i', 'kbd', 'mark',
+        'q', 's', 'samp', 'small', 'span', 'strong',
+        'sub', 'sup', 'time', 'u', 'var', 'acronym','tt',
+    ];
+
+    /** @var list<FormatReplacement> */
+    private array $temporary_replacements_format = [];
+    /** @var list<SourceReplacement> */
+    private array $temporary_replacements_source = [];
+    /** @var list<string> */
+    private array $temporary_replacements_inline = [];
+
+    /**
+     * @param array{indentation_character?: string|null, logging?: bool} $options
+     */
+    public function __construct(array $options = [])
+    {
         foreach ($options as $name => $value) {
             if (!array_key_exists($name, $this->options)) {
                 throw new Exception\InvalidArgumentException('Unrecognized option.');
             }
 
+            // @phpstan-ignore-next-line
             $this->options[$name] = $value;
         }
     }
 
     /**
      * @param string $element_name Element name, e.g. "b".
-     * @param ELEMENT_TYPE_BLOCK|ELEMENT_TYPE_INLINE $type
-     * @return null
+     * @param ElementType $type
      */
-    public function setElementType ($element_name, $type) {
-        if ($type === static::ELEMENT_TYPE_BLOCK) {
-            $this->inline_elements = array_diff($this->inline_elements, array($element_name));
-        } else if ($type === static::ELEMENT_TYPE_INLINE) {
+    public function setElementType(string $element_name, ElementType $type): void
+    {
+        if ($type === ElementType::Block) {
+            $this->inline_elements = array_diff($this->inline_elements, [$element_name]);
+        } elseif ($type === ElementType::Inline) {
             $this->inline_elements[] = $element_name;
         } else {
             throw new Exception\InvalidArgumentException('Unrecognized element type.');
         }
-
         $this->inline_elements = array_unique($this->inline_elements);
     }
 
@@ -59,98 +85,161 @@ class Indenter {
      * @param string $input HTML input.
      * @return string Indented HTML.
      */
-    public function indent ($input) {
-        $this->log = array();
+    public function indent(string $input): string
+    {
+        $this->log = [];
 
-        // Dindent does not indent <script> body. Instead, it temporary removes it from the code, indents the input, and restores the script body.
-        if (preg_match_all('/<script\b[^>]*>([\s\S]*?)<\/script>/mi', $input, $matches)) {
-            $this->temporary_replacements_script = $matches[0];
-            foreach ($matches[0] as $i => $match) {
-                $input = str_replace($match, '<script>' . ($i + 1) . '</script>', $input);
-            }
-        }
+        // Remove trailing spaces
+        $input = preg_replace('/\h+$/m', '', $input);
 
-        // Removing double whitespaces to make the source code easier to read.
-        // With exception of <pre>/ CSS white-space changing the default behaviour, double whitespace is meaningless in HTML output.
-        // This reason alone is sufficient not to use Dindent in production.
-        $input = str_replace("\t", '', $input);
-        $input = preg_replace('/\s{2,}/u', ' ', $input);
+        $count = 0; // keep!
+        // Dindent does not touch `<pre|textarea>` body. Instead, it temporary removes it from the code, indents the input, and restores the body.
+        $input = preg_replace_callback(
+            '/(?<elm><(pre|textarea)[^>]*>)(?<str>[\s\S]*?)(?=<\/\2>)/i',
+            function ($match) use (&$count): string {
+                if (empty($match['str'])) {
+                    return $match[0];
+                }
+                $this->temporary_replacements_format[] = $match;
+                return $match['elm'] . 'ᐂᐂᐂ' . $count++ . 'ᐂᐂᐂ';
+            },
+            $input,
+        );
 
-        // Remove inline elements and replace them with text entities.
-        if (preg_match_all('/<(' . implode('|', $this->inline_elements) . ')[^>]*>(?:[^<]*)<\/\1>/', $input, $matches)) {
-            $this->temporary_replacements_inline = $matches[0];
-            foreach ($matches[0] as $i => $match) {
-                $input = str_replace($match, 'ᐃ' . ($i + 1) . 'ᐃ', $input);
-            }
-        }
+        // Remove empty lines
+        $input = preg_replace('/^\n+/m', '', $input);
 
-        $subject = $input;
+        $count = 0; // keep!
+        // Dindent does not touch `<!-- -->` body. Instead, it temporary removes it from the code, indents the input, and restores the body.
+        $input = preg_replace_callback(
+            '/(?<=<!--)\s*(?<str>[\s\S]+?)\s*(?=-->)/',
+            function ($match) use (&$count): string {
+                if (empty($match['str'])) {
+                    return $match[0];
+                }
+                if (str_contains($match['str'], "\n")) {
+                    $match['lf'] = true;// HACK
+                    $match['str'] = "\n" . preg_replace('/^\s+|\s+$/m', '', $match['str']);
+                } else {
+                    $match['lf'] = false;// HACK
+                    $match['str'] = ' ' . $match['str'] . ' ';
+                }
 
-        $output = '';
+                $this->temporary_replacements_source[] = $match;
+                return                 'ᐄᐄᐄ' . $count++ . 'ᐄᐄᐄ';
+            },
+            $input,
+        );
 
-        $next_line_indentation_level = 0;
+        // Dindent does not indent `<script|style>` body. Instead, it temporary removes it from the code, indents the input, and restores the body.
+        $input = preg_replace_callback(
+            '/(?<elm><(script|style)[^>]*>)(?<str>[\s\S]*?)(?<lf>\n?)\s*(?=<\/\2>)/i',
+            function ($match) use (&$count): string {
+                if (empty($match['str'])) {
+                    return $match[0];
+                }
+                $this->temporary_replacements_source[] = $match;
+                return $match['elm'] . 'ᐄᐄᐄ' . $count++ . 'ᐄᐄᐄ';
+            },
+            $input,
+        );
 
-        do {
-            $indentation_level = $next_line_indentation_level;
+        // Shrink global whitespace
+        $input = preg_replace('/\s+/', ' ', $input);
+        // Remove leading whitespace
+        $input = preg_replace('/^ /m', '', $input);
 
-            $patterns = array(
-                // block tag
-                '/^(<([a-z]+)(?:[^>]*)>(?:[^<]*)<\/(?:\2)>)/' => static::MATCH_INDENT_NO,
-                // DOCTYPE
-                '/^<!([^>]*)>/' => static::MATCH_INDENT_NO,
-                // tag with implied closing @ https://developer.mozilla.org/en-US/docs/Glossary/Void_element
-                '/^<(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)([^>]*)>/' => static::MATCH_INDENT_NO,
-                // (most) self closing SVG tags @ https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element#svg_elements_by_category
-                '/^<(animate|circle|ellipse|line|path|polygon|polyline|rect|stop|use)([^>]*)\/>/' => static::MATCH_INDENT_NO,
-                // opening tag
-                '/^<[^\/]([^>]*)>/' => static::MATCH_INDENT_INCREASE,
-                // closing tag
-                '/^<\/([^>]*)>/' => static::MATCH_INDENT_DECREASE,
-                // self-closing tag
-                '/^<(.+)\/>/' => static::MATCH_INDENT_DECREASE,
-                // whitespace
-                '/^(\s+)/' => static::MATCH_DISCARD,
-                // text node
-                '/([^<]+)/' => static::MATCH_INDENT_NO
+        $count = 0; // keep!
+        // Temporary remove inline elements
+        $input = preg_replace_callback(
+            '/\s*(?<elm><(' . implode('|', $this->inline_elements) . ')[^>]*>)\s*(?<str>[^<]*?)\s*(?<clt><\/\2>)\s*/i',
+            function ($match) use (&$count): string {
+                if (empty($match['str'])) {
+                    return $match[0];
+                }
+                $this->temporary_replacements_inline[] = sprintf(' %s%s%s ', $match['elm'], $match['str'], $match['clt']);
+                return 'ᐃᐃᐃ' . $count++ . 'ᐃᐃᐃ';
+            },
+            $input,
+        );
+
+        // Discard useless whitespace
+        $input = preg_replace('/(<[^>]+>) (?=<)/', '$1', ltrim($input));
+
+        $output   = '';
+        $subject  = null;
+        $indLen   = 0;
+        $indent   = '';
+        $patterns = [];
+
+        // NO line-breake mode!
+        if (null === $this->options['indentation_character']) {
+            $this->options['logging'] = false;// HACK
+
+            $output = str_replace("\n", '', $input);
+        } else {
+            $subject  = preg_replace_callback(
+                '/<!DOCTYPE[^>]+>/i',
+                function ($match) use (&$output): string {
+                    $output = $match[0] . "\n";
+                    return '';
+                },
+                $input,
             );
-            $rules = array('NO', 'DECREASE', 'INCREASE', 'DISCARD');
 
+            $indLen   = -1 * strlen($this->options['indentation_character']);
+            $patterns = [
+                // comment
+                '/^<!--[\s\S]*?-->/' => MatchType::IndentKeep,
+                // standart element
+                '/^<([a-z][\w\-]*)(?: [^<]*)?>[^<]*<\/\1>/' => MatchType::IndentKeep,
+                // implied closing
+                '/^<(?:' . implode('|', $this->void_elements) . ')[^>]*>/' => MatchType::IndentKeep,
+                // self-closing
+                '/^<[^>]+\/>/' => MatchType::IndentKeep,
+
+                // closing tag
+                '/^<\/[^>]+>/' => MatchType::IndentDecrease,
+                // opening tag
+                '/^<[^>]+>/' => MatchType::IndentIncrease,
+                // text node
+                '/^[^<]+/' => MatchType::IndentKeep,
+            ];
+        }
+        while ($subject) {
             foreach ($patterns as $pattern => $rule) {
-                if ($match = preg_match($pattern, $subject, $matches)) {
+                if (preg_match($pattern, $subject, $matches)) {// TODO; check speed `PREG_OFFSET_CAPTURE` vs `mb_strlen()`
                     if ($this->options['logging']) {
-                        $this->log[] = array(
-                            'rule' => $rules[$rule],
+                        $this->log[] = [
+                            'rule'    => $rule->asString(),
                             'pattern' => $pattern,
+                            'match'   => $matches[0],
                             'subject' => $subject,
-                            'match' => $matches[0]
-                        );
+                        ];
                     }
 
                     $subject = mb_substr($subject, mb_strlen($matches[0]));
 
-                    if ($rule === static::MATCH_DISCARD) {
-                        break;
+                    switch ($rule) {
+                        case MatchType::IndentIncrease:
+                            $output .= $indent . $matches[0] . "\n";
+                            $indent .= $this->options['indentation_character'];
+                            break 2;
+
+                        case MatchType::IndentDecrease:
+                            $indent = substr($indent, 0, $indLen);
+
+                            // no break
+                        case MatchType::IndentKeep:
+                            $output .= $indent . $matches[0] . "\n";
+                            break 2;
+
+                        default:
+                            throw new Exception\RuntimeException("MatchType?:{$rule}");
                     }
-
-                    if ($rule === static::MATCH_INDENT_NO) {
-
-                    } else if ($rule === static::MATCH_INDENT_DECREASE) {
-                        $next_line_indentation_level--;
-                        $indentation_level--;
-                    } else {
-                        $next_line_indentation_level++;
-                    }
-
-                    if ($indentation_level < 0) {
-                        $indentation_level = 0;
-                    }
-
-                    $output .= str_repeat($this->options['indentation_character'], $indentation_level) . $matches[0] . "\n";
-
-                    break;
                 }
             }
-        } while ($match);
+        }
 
         if ($this->options['logging']) {
             $interpreted_input = '';
@@ -159,29 +248,41 @@ class Indenter {
             }
 
             if ($interpreted_input !== $input) {
-                throw new Exception\RuntimeException('Did not reproduce the exact input.');
+                if (!empty($this->log)) {
+                    var_dump($this->log);
+                }
+                throw new Exception\RuntimeException("\n{$interpreted_input}\n!==\n{$input}\n");
             }
         }
 
-        $output = preg_replace('/(<(\w+)[^>]*>)\s*(<\/\2>)/u', '\\1\\3', $output);
-
-        foreach ($this->temporary_replacements_script as $i => $original) {
-            $output = str_replace('<script>' . ($i + 1) . '</script>', $original, $output);
-        }
-
+        // Restore inline elements
         foreach ($this->temporary_replacements_inline as $i => $original) {
-            $output = str_replace('ᐃ' . ($i + 1) . 'ᐃ', $original, $output);
+            $output = str_replace('ᐃᐃᐃ' . $i . 'ᐃᐃᐃ', $original, $output);
         }
 
-        return trim($output);
+        // Remove empty space inside & between tags
+        $output = preg_replace('/(<[^>]+>) (?=<)/', '$1', $output);
+
+        // Restore `<pre|textarea>`.
+        foreach ($this->temporary_replacements_format as $i => $original) {
+            $output = preg_replace('/( *)(<[^>]+>?)?ᐂᐂᐂ' . $i . 'ᐂᐂᐂ/', '$1$2' . $original['str'], $output);
+        }
+
+        // Restore `<script|style>` & `<!-- -->`
+        foreach (array_reverse($this->temporary_replacements_source, true) as $i => $original) {
+            $output = preg_replace('/( +)?(<[^>]+>?)?ᐄᐄᐄ' . $i . 'ᐄᐄᐄ/m', preg_replace('/^/m', '\\$1', '$2' . $original['str']) . (!empty($original['lf']) ? "\n$1" : ''), $output);
+        }
+
+        return rtrim($output);
     }
 
     /**
      * Debugging utility. Get log for the last indent operation.
      *
-     * @return array
+     * @return LogEntry[]
      */
-    public function getLog () {
+    public function getLog(): array
+    {
         return $this->log;
     }
 }

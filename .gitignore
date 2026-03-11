@@ -1,4 +1,4 @@
-vendor/
-report/
+.cache/*
+!.cache/.gitkeep
 composer.lock
-sandbox/
+vendor/
