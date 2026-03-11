@@ -39,6 +39,7 @@ class Indenter
         'sub', 'sup', 'time', 'u', 'var', 'acronym','tt',
     ];
 
+    private array $temporary_replacements_format = [];
     private array $temporary_replacements_source = [];
     private array $temporary_replacements_inline = [];
 
@@ -80,14 +81,49 @@ class Indenter
     {
         $this->log = [];
 
-
         // Remove trailing spaces
         $input = preg_replace('/\h+$/m', '', $input);
+
+        $count = 0; // keep!
+        // Dindent does not touch `<pre|textarea>` body. Instead, it temporary removes it from the code, indents the input, and restores the body.
+        $input = preg_replace_callback(
+            '/(?<elm><(pre|textarea)[^>]*>)(?<str>[\s\S]*?)(?=<\/\2>)/i',
+            function ($match) use (&$count): string {
+                if (empty($match['str'])) {
+                    return $match[0];
+                }
+                $this->temporary_replacements_format[] = $match;
+                return $match['elm'] . 'ᐂᐂᐂ' . $count++ . 'ᐂᐂᐂ';
+            },
+            $input,
+        );
+
         // Remove empty lines
         $input = preg_replace('/^\n+/m', '', $input);
 
+        $count = 0; // keep!
+        // Dindent does not touch `<!-- -->` body. Instead, it temporary removes it from the code, indents the input, and restores the body.
+        $input = preg_replace_callback(
+            '/(?<=<!--)\s*(?<str>[\s\S]+?)\s*(?=-->)/',
+            function ($match) use (&$count): string {
+                if (empty($match['str'])) {
+                    return $match[0];
+                }
+                if (str_contains($match['str'], "\n")) {
+                    $match['lf'] = true;// HACK
+                    $match['str'] = "\n" . preg_replace('/^\s+|\s+$/m', '', $match['str']);
+                } else {
+                    $match['lf'] = false;// HACK
+                    $match['str'] = ' ' . $match['str'] . ' ';
+                }
+
+                $this->temporary_replacements_source[] = $match;
+                return                 'ᐄᐄᐄ' . $count++ . 'ᐄᐄᐄ';
+            },
+            $input,
+        );
+
         // Dindent does not indent `<script|style>` body. Instead, it temporary removes it from the code, indents the input, and restores the body.
-        $count = 0;
         $input = preg_replace_callback(
             '/(?<elm><(script|style)[^>]*>)(?<str>[\s\S]*?)(?<lf>\n?)\s*(?=<\/\2>)/i',
             function ($match) use (&$count): string {
@@ -102,11 +138,11 @@ class Indenter
 
         // Shrink global whitespace
         $input = preg_replace('/\s+/', ' ', $input);
-        // Remove leading spaces
+        // Remove leading whitespace
         $input = preg_replace('/^ /m', '', $input);
 
+        $count = 0; // keep!
         // Temporary remove inline elements
-        $count = 0;
         $input = preg_replace_callback(
             '/\s*(?<elm><(' . implode('|', $this->inline_elements) . ')[^>]*>)\s*(?<str>[^<]*?)\s*(?<clt><\/\2>)\s*/i',
             function ($match) use (&$count): string {
@@ -126,8 +162,8 @@ class Indenter
         if (null === $this->options['indentation_character']) {
             $this->options['logging'] = false;// HACK
 
+            $output   = str_replace("\n", '', $input);
             $subject  = null;
-            $output   = $input;
         } else {
             $output   = '';
             $subject  = preg_replace_callback(
@@ -215,11 +251,16 @@ class Indenter
         }
 
         // Remove empty space inside & between tags
-        $output = preg_replace('/(<[^>]+>) (?=<\/)/', '$1', $output);
+        $output = preg_replace('/(<[^>]+>) (?=<)/', '$1', $output);
 
-        // Restore `<script|style>` bodys
-        foreach ($this->temporary_replacements_source as $i => $original) {
-            $output = preg_replace('/(\s*)(<[^>]+>)ᐄᐄᐄ' . $i . 'ᐄᐄᐄ/', '$1$2' . $original['str'] . ($original['lf'] ? "$1" : ''), $output);
+        // Restore `<pre|textarea>`.
+        foreach ($this->temporary_replacements_format as $i => $original) {
+            $output = preg_replace('/( *)(<[^>]+>?)?ᐂᐂᐂ' . $i . 'ᐂᐂᐂ/', '$1$2' . $original['str'], $output);
+        }
+
+        // Restore `<script|style>` & `<!-- -->`
+        foreach (array_reverse($this->temporary_replacements_source, true) as $i => $original) {
+            $output = preg_replace('/( +)?(<[^>]+>?)?ᐄᐄᐄ' . $i . 'ᐄᐄᐄ/m', preg_replace('/^/m', '\\$1', '$2' . $original['str']) . (!empty($original['lf']) ? "\n$1" : ''), $output);
         }
 
         return rtrim($output);
