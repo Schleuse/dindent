@@ -1,6 +1,6 @@
 # Dindent
 
-[![Coverage Status](https://coveralls.io/repos/Schleuse/dindent/badge.png?branch=master)](https://coveralls.io/r/Schleuse/dindent?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/Schleuse/dindent/badge.svg?branch=main)](https://coveralls.io/github/Schleuse/dindent?branch=main)
 [![Latest Stable Version](https://poser.pugx.org/Schleuse/dindent/version.png)](https://packagist.org/packages/Schleuse/dindent)
 [![License](https://poser.pugx.org/Schleuse/dindent/license.png)](https://packagist.org/packages/Schleuse/dindent)
 
