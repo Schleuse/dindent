@@ -35,6 +35,60 @@ class IndenterTest extends \PHPUnit\Framework\TestCase
         $this->assertSame($expected_output, $indented);
     }
 
+    #[DataProvider('reusedInstanceProvider')]
+    public function testIndentResetsTemporaryReplacementsBetweenCalls(
+        string $firstInput,
+        string $secondInput,
+        string $firstContent,
+        string $secondContent,
+    ): void {
+        $indenter = new \Gajus\Dindent\Indenter();
+
+        $this->assertStringContainsString($firstContent, $indenter->indent($firstInput));
+
+        $secondOutput = $indenter->indent($secondInput);
+
+        $this->assertStringContainsString($secondContent, $secondOutput);
+        $this->assertStringNotContainsString($firstContent, $secondOutput);
+    }
+
+    /** @return array<string, array{string, string, string, string}> */
+    public static function reusedInstanceProvider(): array
+    {
+        return [
+            'inline element' => [
+                '<p><span>first inline content</span></p>',
+                '<p><span>second inline content</span></p>',
+                'first inline content',
+                'second inline content',
+            ],
+            'preformatted element' => [
+                '<pre>first preformatted content</pre>',
+                '<pre>second preformatted content</pre>',
+                'first preformatted content',
+                'second preformatted content',
+            ],
+            'comment' => [
+                '<div><!-- first comment content --></div>',
+                '<div><!-- second comment content --></div>',
+                'first comment content',
+                'second comment content',
+            ],
+            'script element' => [
+                '<script>const firstScriptContent = true;</script>',
+                '<script>const secondScriptContent = true;</script>',
+                'firstScriptContent',
+                'secondScriptContent',
+            ],
+            'style element' => [
+                '<style>.first-style-content { color: red; }</style>',
+                '<style>.second-style-content { color: blue; }</style>',
+                'first-style-content',
+                'second-style-content',
+            ],
+        ];
+    }
+
     #[DataProvider('indentProvider')]
     public function testIndent(string $name): void
     {

@@ -88,6 +88,9 @@ class Indenter
     public function indent(string $input): string
     {
         $this->log = [];
+        $this->temporary_replacements_format = [];
+        $this->temporary_replacements_source = [];
+        $this->temporary_replacements_inline = [];
 
         // Remove trailing spaces
         $input = preg_replace('/\h+$/m', '', $input);
