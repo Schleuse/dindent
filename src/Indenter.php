@@ -169,11 +169,8 @@ class Indenter
         // Discard useless whitespace
         $input = preg_replace('/(<[^>]+>) (?=<)/', '$1', ltrim($input));
 
-        $output   = '';
-        $subject  = null;
-        $indLen   = 0;
-        $indent   = '';
-        $patterns = [];
+        $output = '';
+        $indent = '';
 
         // NO line-breake mode!
         if (null === $this->options['indentation_character']) {
@@ -193,53 +190,68 @@ class Indenter
             $indLen   = -1 * strlen($this->options['indentation_character']);
             $patterns = [
                 // comment
-                '/^<!--[\s\S]*?-->/' => MatchType::IndentKeep,
+                '/\G<!--[\s\S]*?-->/' => MatchType::IndentKeep,
                 // standart element
-                '/^<([a-z][\w\-]*)(?: [^<]*)?>[^<]*<\/\1>/' => MatchType::IndentKeep,
+                '/\G<([a-z][\w\-]*)(?: [^<]*)?>[^<]*<\/\1>/' => MatchType::IndentKeep,
                 // implied closing
-                '/^<(?:' . implode('|', $this->void_elements) . ')[^>]*>/' => MatchType::IndentKeep,
+                '/\G<(?:' . implode('|', $this->void_elements) . ')[^>]*>/' => MatchType::IndentKeep,
                 // self-closing
-                '/^<[^>]+\/>/' => MatchType::IndentKeep,
+                '/\G<[^>]+\/>/' => MatchType::IndentKeep,
 
                 // closing tag
-                '/^<\/[^>]+>/' => MatchType::IndentDecrease,
+                '/\G<\/[^>]+>/' => MatchType::IndentDecrease,
                 // opening tag
-                '/^<[^>]+>/' => MatchType::IndentIncrease,
+                '/\G<[^>]+>/' => MatchType::IndentIncrease,
                 // text node
-                '/^[^<]+/' => MatchType::IndentKeep,
+                '/\G[^<]+/' => MatchType::IndentKeep,
             ];
-        }
-        while ($subject) {
-            foreach ($patterns as $pattern => $rule) {
-                if (preg_match($pattern, $subject, $matches)) {// TODO; check speed `PREG_OFFSET_CAPTURE` vs `mb_strlen()`
-                    if ($this->options['logging']) {
-                        $this->log[] = [
-                            'rule'    => $rule->asString(),
-                            'pattern' => $pattern,
-                            'match'   => $matches[0],
-                            'subject' => $subject,
-                        ];
+
+            $offset = 0;
+            $subjectLength = strlen($subject);
+
+            while ($offset < $subjectLength) {
+                $matched = false;
+
+                foreach ($patterns as $pattern => $rule) {
+                    if (preg_match($pattern, $subject, $matches, 0, $offset)) {
+                        $matched = true;
+
+                        if ($this->options['logging']) {
+                            $this->log[] = [
+                                'rule'    => $rule->asString(),
+                                'pattern' => $pattern,
+                                'match'   => $matches[0],
+                                'subject' => substr($subject, $offset),
+                            ];
+                        }
+
+                        $offset += strlen($matches[0]);
+
+                        switch ($rule) {
+                            case MatchType::IndentIncrease:
+                                $output .= $indent . $matches[0] . "\n";
+                                $indent .= $this->options['indentation_character'];
+                                break;
+
+                            case MatchType::IndentDecrease:
+                                $indent = substr($indent, 0, $indLen);
+
+                                // no break
+                            case MatchType::IndentKeep:
+                                $output .= $indent . $matches[0] . "\n";
+                                break;
+
+                            default:
+                                throw new Exception\RuntimeException("MatchType?:{$rule}");
+                        }
+
+                        break;
                     }
+                }
 
-                    $subject = mb_substr($subject, mb_strlen($matches[0]));
-
-                    switch ($rule) {
-                        case MatchType::IndentIncrease:
-                            $output .= $indent . $matches[0] . "\n";
-                            $indent .= $this->options['indentation_character'];
-                            break 2;
-
-                        case MatchType::IndentDecrease:
-                            $indent = substr($indent, 0, $indLen);
-
-                            // no break
-                        case MatchType::IndentKeep:
-                            $output .= $indent . $matches[0] . "\n";
-                            break 2;
-
-                        default:
-                            throw new Exception\RuntimeException("MatchType?:{$rule}");
-                    }
+                if (!$matched) {
+                    $output .= substr($subject, $offset);
+                    break;
                 }
             }
         }
@@ -259,21 +271,41 @@ class Indenter
         }
 
         // Restore inline elements
-        foreach ($this->temporary_replacements_inline as $i => $original) {
-            $output = str_replace('ᐃᐃᐃ' . $i . 'ᐃᐃᐃ', $original, $output);
+        if (!empty($this->temporary_replacements_inline)) {
+            $output = preg_replace_callback(
+                '/ᐃᐃᐃ(\d+)ᐃᐃᐃ/',
+                function ($match): string {
+                    return $this->temporary_replacements_inline[(int) $match[1]] ?? $match[0];
+                },
+                $output,
+            );
         }
 
         // Remove empty space inside & between tags
         $output = preg_replace('/(<[^>]+>) (?=<)/', '$1', $output);
 
         // Restore `<pre|textarea>`.
-        foreach ($this->temporary_replacements_format as $i => $original) {
-            $output = preg_replace('/( *)(<[^>]+>?)?ᐂᐂᐂ' . $i . 'ᐂᐂᐂ/', '$1$2' . $original['str'], $output);
+        if (!empty($this->temporary_replacements_format)) {
+            $output = preg_replace_callback(
+                '/( *)(<[^>]+>?)?ᐂᐂᐂ(\d+)ᐂᐂᐂ/',
+                function ($match): string {
+                    $original = $this->temporary_replacements_format[(int) $match[3]] ?? null;
+
+                    if (null === $original) {
+                        return $match[0];
+                    }
+
+                    return $match[1] . $match[2] . $original['str'];
+                },
+                $output,
+            );
         }
 
         // Restore `<script|style>` & `<!-- -->`
-        foreach (array_reverse($this->temporary_replacements_source, true) as $i => $original) {
-            $output = preg_replace('/( +)?(<[^>]+>?)?ᐄᐄᐄ' . $i . 'ᐄᐄᐄ/m', preg_replace('/^/m', '\\$1', '$2' . $original['str']) . (!empty($original['lf']) ? "\n$1" : ''), $output);
+        if (!empty($this->temporary_replacements_source)) {
+            foreach (array_reverse($this->temporary_replacements_source, true) as $i => $original) {
+                $output = preg_replace('/( +)?(<[^>]+>?)?ᐄᐄᐄ' . $i . 'ᐄᐄᐄ/m', preg_replace('/^/m', '\\$1', '$2' . $original['str']) . (!empty($original['lf']) ? "\n$1" : ''), $output);
+            }
         }
 
         return rtrim($output);
