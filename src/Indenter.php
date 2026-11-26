@@ -155,12 +155,12 @@ class Indenter
         $count = 0; // keep!
         // Temporary remove inline elements
         $input = preg_replace_callback(
-            '/\s*(?<elm><(' . implode('|', $this->inline_elements) . ')[^>]*>)\s*(?<str>[^<]*?)\s*(?<clt><\/\2>)\s*/i',
+            '/(?<elm><(' . implode('|', $this->inline_elements) . ')[^>]*>)\s*(?<str>[^<]*?)\s*(?<clt><\/\2>)/i',
             function ($match) use (&$count): string {
                 if (empty($match['str'])) {
                     return $match[0];
                 }
-                $this->temporary_replacements_inline[] = sprintf(' %s%s%s ', $match['elm'], $match['str'], $match['clt']);
+                $this->temporary_replacements_inline[] = sprintf('%s%s%s', $match['elm'], $match['str'], $match['clt']);
                 return 'ᐃᐃᐃ' . $count++ . 'ᐃᐃᐃ';
             },
             $input,
