@@ -15,7 +15,13 @@
   displayDetailsOnTestsThatTriggerErrors="true"
   displayDetailsOnTestsThatTriggerNotices="true"
   displayDetailsOnTestsThatTriggerWarnings="true"
+  failOnDeprecation="true"
+  failOnNotice="true"
+  failOnWarning="true"
 >
+  <php>
+    <ini name="error_reporting" value="-1"/>
+  </php>
   <testsuites>
     <testsuite name="All tests">
       <directory>./tests</directory>
