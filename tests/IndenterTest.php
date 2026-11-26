@@ -89,6 +89,33 @@ class IndenterTest extends \PHPUnit\Framework\TestCase
         ];
     }
 
+    #[DataProvider('inlineWhitespaceProvider')]
+    public function testIndentPreservesWhitespaceAroundInlineElements(string $input, string $expected_output): void
+    {
+        $indenter = new \Gajus\Dindent\Indenter();
+
+        $this->assertSame($expected_output, $indenter->indent($input));
+    }
+
+    /** @return array<string, array{string, string}> */
+    public static function inlineWhitespaceProvider(): array
+    {
+        return [
+            'space between two inline elements' => [
+                '<p><b>a</b> <i>b</i></p>',
+                '<p><b>a</b>  <i>b</i></p>',
+            ],
+            'space between inline elements in text' => [
+                '<p>Hello <b>world</b> <i>again</i></p>',
+                '<p>Hello <b>world</b>  <i>again</i></p>',
+            ],
+            'whitespace inside inline element' => [
+                '<p>a<span> x </span>b</p>',
+                '<p>a <span>x</span> b</p>',
+            ],
+        ];
+    }
+
     #[DataProvider('indentProvider')]
     public function testIndent(string $name): void
     {
